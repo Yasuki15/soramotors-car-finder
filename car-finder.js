@@ -459,6 +459,17 @@ class CarFinder {
         
         // Show target screen
         document.getElementById(screenId).classList.add('active');
+
+        // Reset scroll position after every screen change.
+        const root = document.documentElement;
+        const body = document.body;
+        if (root) root.scrollTop = 0;
+        if (body) body.scrollTop = 0;
+        try {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        } catch (_) {
+            window.scrollTo(0, 0);
+        }
     }
 
     displayQuestion() {
@@ -474,7 +485,7 @@ class CarFinder {
                 <span>Select all that apply (click to select/deselect)</span>
             </div>
             ${question.options.map(option => `
-                <button class="option-btn${(this.answers[question.id] && this.answers[question.id].includes(option.value)) ? ' selected' : ''}" data-value="${option.value}">
+                <button type="button" class="option-btn${(this.answers[question.id] && this.answers[question.id].includes(option.value)) ? ' selected' : ''}" data-value="${option.value}">
                     <span class="option-icon">${option.icon}</span>
                     <span class="option-text">${option.text}</span>
                     <span class="selection-indicator">
@@ -483,7 +494,7 @@ class CarFinder {
                 </button>
             `).join('')}
             <div class="next-button-container">
-                <button class="next-btn" onclick="nextQuestion()" id="next-btn">
+                <button type="button" class="next-btn" onclick="nextQuestion()" id="next-btn">
                     <span>Next Question</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
