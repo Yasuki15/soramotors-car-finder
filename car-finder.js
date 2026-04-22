@@ -138,6 +138,7 @@ class CarFinder {
         // Inquiry form: current step (1-based)
         this.inquiryStep = 1;
         this.inquiryTotalSteps = 3;
+        this.isAdvancingQuestion = false;
         
         // Load cars from Supabase
         this.loadCarsFromSupabase();
@@ -494,7 +495,7 @@ class CarFinder {
                 </button>
             `).join('')}
             <div class="next-button-container">
-                <button type="button" class="next-btn" onclick="nextQuestion()" id="next-btn">
+                <button type="button" class="next-btn" onclick="nextQuestion(event)" id="next-btn">
                     <span>Next Question</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
@@ -536,13 +537,25 @@ class CarFinder {
     }
 
     nextQuestion() {
+        if (this.isAdvancingQuestion) return;
+        this.isAdvancingQuestion = true;
+
+        const releaseAdvanceLock = () => {
+            setTimeout(() => {
+                this.isAdvancingQuestion = false;
+            }, 250);
+        };
+
         this.currentQuestion++;
         
         if (this.currentQuestion < this.questions.length) {
             this.displayQuestion();
+            this.scrollQuestionToTop();
+            releaseAdvanceLock();
         } else {
             try {
                 this.showResults();
+                releaseAdvanceLock();
             } catch (err) {
                 console.error('Error showing results:', err);
                 this.showScreen('results-screen');
@@ -550,7 +563,19 @@ class CarFinder {
                 const resultsGrid = document.getElementById('results-grid');
                 if (resultsCount) resultsCount.innerHTML = `<div class="count-display no-results"><span>Something went wrong</span></div>`;
                 if (resultsGrid) resultsGrid.innerHTML = `<div class="no-results"><p>Please try again or contact us.</p></div>`;
+                releaseAdvanceLock();
             }
+        }
+    }
+
+    scrollQuestionToTop() {
+        const questionHeading = document.getElementById('question-text');
+        if (!questionHeading) return;
+        try {
+            questionHeading.scrollIntoView({ block: 'start', behavior: 'auto' });
+        } catch (_) {
+            const top = questionHeading.getBoundingClientRect().top + window.pageYOffset - 12;
+            window.scrollTo(0, Math.max(0, top));
         }
     }
 
@@ -1874,7 +1899,11 @@ function startCarFinder() {
     carFinder.startCarFinder();
 }
 
-function nextQuestion() {
+function nextQuestion(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
     carFinder.nextQuestion();
 }
 
