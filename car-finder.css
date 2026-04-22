@@ -805,6 +805,21 @@ body {
     box-shadow: 0 5px 15px rgba(50, 137, 187, 0.3);
 }
 
+/* Question flow: keep answers above the fixed "Back to Home" control (iOS ghost taps). */
+#question-screen .question-container .question-content {
+    position: relative;
+    z-index: 20;
+}
+
+#question-screen .question-container .car-preview {
+    position: relative;
+    z-index: 15;
+}
+
+#question-screen .back-to-home-btn {
+    z-index: 5;
+}
+
 /* Question Screen */
 .question-container {
     background: rgba(255, 255, 255, 0.95);
@@ -890,6 +905,8 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .option-btn:hover {
@@ -1293,6 +1310,62 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 30px;
     margin-bottom: 40px;
+}
+
+.results-cap-note {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #555;
+    margin: 12px auto 0;
+    max-width: 640px;
+    line-height: 1.5;
+}
+
+/* Google-style results pagination */
+.results-pagination {
+    margin: 4px 0 28px;
+    text-align: center;
+}
+
+.results-pagination-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px 8px;
+    margin-bottom: 10px;
+}
+
+.results-page-link {
+    background: none;
+    border: none;
+    color: #1a0dab;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 8px 10px;
+    font-family: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.results-page-link:active {
+    color: #1558d6;
+}
+
+.results-page-current {
+    display: inline-block;
+    color: #202124;
+    font-weight: 600;
+    padding: 8px 10px;
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+.results-page-meta {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0;
 }
 
 .car-card {

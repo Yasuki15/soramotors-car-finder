@@ -15,6 +15,17 @@ function ensureArray(value) {
     return [];
 }
 
+const RESULTS_PAGE_SIZE = 50;
+
+function escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 class CarFinder {
     constructor() {
         this.currentQuestion = 0;
@@ -140,6 +151,9 @@ class CarFinder {
         this.inquiryTotalSteps = 3;
         this.isAdvancingQuestion = false;
         this.blockHomeNavigationUntil = 0;
+        this._previewUpdateRaf = null;
+        this._fullMatchedCarsData = null;
+        this._resultsCurrentPage = 1;
         
         // Load cars from Supabase
         this.loadCarsFromSupabase();
@@ -475,6 +489,11 @@ class CarFinder {
     }
 
     displayQuestion() {
+        if (this._previewUpdateRaf != null) {
+            cancelAnimationFrame(this._previewUpdateRaf);
+            this._previewUpdateRaf = null;
+        }
+
         const question = this.questions[this.currentQuestion];
         const questionText = document.getElementById('question-text');
         const optionsContainer = document.getElementById('options-container');
@@ -508,6 +527,9 @@ class CarFinder {
     }
 
     selectOption(button) {
+        // iOS: reduce accidental "Back to Home" hits after layout shifts + debounce heavy preview DOM.
+        this.blockAccidentalHomeNavFor(1000);
+
         const question = this.questions[this.currentQuestion];
         const selectedValue = button.dataset.value;
         
@@ -532,15 +554,148 @@ class CarFinder {
             this.answers[question.id].push(selectedValue);
         }
 
-        // Update car preview and next button
-        this.updateCarPreview();
+        this.scheduleCarPreviewUpdate();
         this.updateNextButton();
+    }
+
+    scheduleCarPreviewUpdate() {
+        if (this._previewUpdateRaf != null) {
+            cancelAnimationFrame(this._previewUpdateRaf);
+        }
+        this._previewUpdateRaf = requestAnimationFrame(() => {
+            this._previewUpdateRaf = null;
+            this.updateCarPreview();
+        });
+    }
+
+    blockAccidentalHomeNavFor(ms) {
+        const until = Date.now() + ms;
+        if (until > this.blockHomeNavigationUntil) {
+            this.blockHomeNavigationUntil = until;
+        }
+    }
+
+    getResultsTotalPages() {
+        const total = this._fullMatchedCarsData?.length ?? 0;
+        return Math.max(1, Math.ceil(total / RESULTS_PAGE_SIZE));
+    }
+
+    renderCurrentResultsPage() {
+        const grid = document.getElementById('results-grid');
+        const full = this._fullMatchedCarsData;
+        if (!grid || !full || full.length === 0) return;
+
+        const totalPages = this.getResultsTotalPages();
+        const page = Math.min(Math.max(1, this._resultsCurrentPage), totalPages);
+        this._resultsCurrentPage = page;
+
+        const start = (page - 1) * RESULTS_PAGE_SIZE;
+        const slice = full.slice(start, start + RESULTS_PAGE_SIZE);
+        grid.innerHTML = slice.map((carData, i) => this.buildResultCardHtml(carData, start + i)).join('');
+    }
+
+    buildResultsPaginationHtml() {
+        const total = this._fullMatchedCarsData?.length ?? 0;
+        const totalPages = this.getResultsTotalPages();
+        const current = this._resultsCurrentPage;
+
+        if (total <= RESULTS_PAGE_SIZE || totalPages <= 1) {
+            return '';
+        }
+
+        const linkWindow = 10;
+        const blockIndex = Math.floor((current - 1) / linkWindow);
+        const rangeStart = blockIndex * linkWindow + 1;
+        const rangeEnd = Math.min(rangeStart + linkWindow - 1, totalPages);
+
+        let html = '<nav class="results-pagination-inner" role="navigation">';
+
+        if (rangeStart > 1) {
+            html += `<button type="button" class="results-page-nav results-page-link" onclick="goToResultsPage(event, ${rangeStart - 1})">Previous</button>`;
+        }
+
+        for (let p = rangeStart; p <= rangeEnd; p++) {
+            if (p === current) {
+                html += `<span class="results-page-current" aria-current="page">${p}</span>`;
+            } else {
+                html += `<button type="button" class="results-page-link" onclick="goToResultsPage(event, ${p})">${p}</button>`;
+            }
+        }
+
+        if (rangeEnd < totalPages) {
+            html += `<button type="button" class="results-page-nav results-page-link" onclick="goToResultsPage(event, ${rangeEnd + 1})">Next</button>`;
+        }
+
+        html += '</nav>';
+        html += `<p class="results-page-meta">Page ${current} of ${totalPages} · ${total} matches</p>`;
+        return html;
+    }
+
+    renderResultsPagination() {
+        const wrap = document.getElementById('results-pagination');
+        if (!wrap) return;
+        wrap.innerHTML = this.buildResultsPaginationHtml();
+    }
+
+    goToResultsPage(page) {
+        const total = this._fullMatchedCarsData?.length ?? 0;
+        if (total === 0) return;
+
+        const totalPages = this.getResultsTotalPages();
+        let p = parseInt(page, 10);
+        if (Number.isNaN(p) || p < 1) p = 1;
+        if (p > totalPages) p = totalPages;
+
+        this._resultsCurrentPage = p;
+        this.blockAccidentalHomeNavFor(800);
+        this.renderCurrentResultsPage();
+        this.renderResultsPagination();
+
+        const heading = document.querySelector('#results-screen h2');
+        if (heading) {
+            try {
+                heading.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            } catch (_) {
+                heading.scrollIntoView(true);
+            }
+        }
+    }
+
+    buildResultCardHtml(carData, index) {
+        const car = carData.car;
+        const name = escapeHtml(car.name);
+        const price = escapeHtml(car.price);
+        const desc = escapeHtml(car.description);
+        const features = Array.from(ensureArray(car.features || []))
+            .map(feature => `<span class="feature-tag">${escapeHtml(feature)}</span>`)
+            .join('');
+        return `
+                    <div class="car-card" style="animation-delay: ${(index % 20) * 0.05}s">
+                        <img src="${car.imageExterior || ''}" alt="${name}" class="car-card-image" loading="lazy">
+                        <div class="car-card-content">
+                            <h3>${name}</h3>
+                            <p class="car-price">${price}</p>
+                            <p>${desc}</p>
+                            <div class="car-features">
+                                ${features}
+                            </div>
+                            <div class="car-card-actions">
+                                <button type="button" class="view-details-btn" onclick="viewCarDetails(${JSON.stringify(car.id)})">
+                                    View Details
+                                </button>
+                                <button type="button" class="contact-btn" onclick="contactAboutCar(${JSON.stringify(car.id)})">
+                                    Contact About This Car
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
     }
 
     nextQuestion() {
         if (this.isAdvancingQuestion) return;
         this.isAdvancingQuestion = true;
-        this.blockHomeNavigationUntil = Date.now() + 1200;
+        this.blockAccidentalHomeNavFor(2200);
 
         const releaseAdvanceLock = () => {
             setTimeout(() => {
@@ -804,6 +959,8 @@ class CarFinder {
         } catch (err) {
             console.error('Error in getMatchedCars:', err);
             this.showScreen('results-screen');
+            const paginationEl = document.getElementById('results-pagination');
+            if (paginationEl) paginationEl.innerHTML = '';
             resultsCount.innerHTML = `
                 <div class="count-display no-results">
                     <i class="fas fa-exclamation-triangle"></i>
@@ -836,9 +993,19 @@ class CarFinder {
         console.log('User answers:', this.answers);
         console.log('Matched cars:', matchedCarsData.length);
         console.log('Match percentage:', this.carDatabase.length > 0 ? ((matchedCarsData.length / this.carDatabase.length) * 100).toFixed(1) + '%' : '0%');
-        
+
+        const totalMatches = matchedCarsData.length;
+
+        this._fullMatchedCarsData = matchedCarsData.slice();
+        this._resultsCurrentPage = 1;
+
+        const paginationEl = document.getElementById('results-pagination');
+
         // Update results count display
-        if (matchedCarsData.length === 0) {
+        if (totalMatches === 0) {
+            this._fullMatchedCarsData = null;
+            this._resultsCurrentPage = 1;
+            if (paginationEl) paginationEl.innerHTML = '';
             resultsCount.innerHTML = `
                 <div class="count-display no-results">
                     <i class="fas fa-search"></i>
@@ -846,15 +1013,19 @@ class CarFinder {
                 </div>
             `;
         } else {
+            const pagedNote = totalMatches > RESULTS_PAGE_SIZE
+                ? `<p class="results-cap-note">Showing <strong>${RESULTS_PAGE_SIZE}</strong> cars per page. Use the page numbers below (like Google) to see more matches.</p>`
+                : '';
             resultsCount.innerHTML = `
                 <div class="count-display">
                     <i class="fas fa-check-circle"></i>
-                    <span>Found <strong>${matchedCarsData.length}</strong> match${matchedCarsData.length === 1 ? '' : 'es'}</span>
+                    <span>Found <strong>${totalMatches}</strong> match${totalMatches === 1 ? '' : 'es'}</span>
                 </div>
+                ${pagedNote}
             `;
         }
-        
-        if (matchedCarsData.length === 0) {
+
+        if (totalMatches === 0) {
             resultsGrid.innerHTML = `
                 <div class="no-results">
                     <i class="fas fa-search"></i>
@@ -863,32 +1034,11 @@ class CarFinder {
                 </div>
             `;
         } else {
-            resultsGrid.innerHTML = matchedCarsData.map((carData, index) => {
-                const car = carData.car;
-                return `
-                    <div class="car-card" style="animation-delay: ${index * 0.1}s">
-                        <img src="${car.imageExterior}" alt="${car.name}" class="car-card-image">
-                        <div class="car-card-content">
-                            <h3>${car.name}</h3>
-                            <p class="car-price">${car.price}</p>
-                            <p>${car.description}</p>
-                            <div class="car-features">
-                                ${Array.from(ensureArray(car.features || [])).map(feature => `<span class="feature-tag">${feature}</span>`).join('')}
-                            </div>
-                            <div class="car-card-actions">
-                                <button class="view-details-btn" onclick="viewCarDetails(${car.id})">
-                                    View Details
-                                </button>
-                                <button class="contact-btn" onclick="contactAboutCar(${car.id})">
-                                    Contact About This Car
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            this.renderCurrentResultsPage();
+            this.renderResultsPagination();
         }
 
+        this.blockAccidentalHomeNavFor(1500);
         this.showScreen('results-screen');
     }
 
@@ -1320,6 +1470,10 @@ class CarFinder {
     restartCarFinder() {
         this.currentQuestion = 0;
         this.answers = {};
+        this._fullMatchedCarsData = null;
+        this._resultsCurrentPage = 1;
+        const paginationEl = document.getElementById('results-pagination');
+        if (paginationEl) paginationEl.innerHTML = '';
         this.updateCarPreview();
         this.showScreen('welcome-screen');
     }
@@ -2063,6 +2217,14 @@ function goBackToWelcome() {
         return;
     }
     carFinder.restartCarFinder();
+}
+
+function goToResultsPage(event, page) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    carFinder.goToResultsPage(page);
 }
 
 function submitCarInquiry(event) {
