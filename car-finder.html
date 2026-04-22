@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sora Motors - Car Finder</title>
+    <link rel="stylesheet" href="car-finder.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Car Finder Container -->
+    <div class="car-finder-container">
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="screen active">
+            <div class="welcome-content">
+                <div class="welcome-icon">
+                    <img src="logo.jpg" alt="Sora Motors" class="welcome-logo">
+                </div>
+                <h1>How Can We Help You?</h1>
+                <p>Choose an option below to get started</p>
+                <div class="welcome-options">
+                    <button class="welcome-option-btn" onclick="startCarFinder()">
+                        <div class="option-icon-large">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h3>Find My Perfect Car</h3>
+                        <p>Answer a few questions and we'll match you with the perfect vehicle from our extensive collection.</p>
+                        <span class="option-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </button>
+                    <button class="welcome-option-btn" onclick="startCarInquiry()">
+                        <div class="option-icon-large">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <h3>Inquire About a Specific Car</h3>
+                        <p>Already know what you want? Tell us about the specific car you're looking for.</p>
+                        <span class="option-arrow">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="screen">
+            <div class="question-container">
+                <button class="back-to-home-btn" onclick="goBackToWelcome()">
+                    <i class="fas fa-home"></i>
+                    Back to Home
+                </button>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                
+                <div class="question-content">
+                    <h2 id="question-text"></h2>
+                    <div class="options-container" id="options-container"></div>
+                </div>
+
+                <div class="car-preview">
+                    <div class="car-preview-logo">
+                        <img src="logo.jpg" alt="Sora Motors" class="car-preview-logo-img">
+                    </div>
+                    <div class="car-display" id="car-display">
+                        <div class="car-placeholder">
+                            <i class="fas fa-car-side"></i>
+                            <p>Your perfect car will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <div class="results-container">
+                <button class="back-to-home-btn" onclick="goBackToWelcome()">
+                    <i class="fas fa-home"></i>
+                    Back to Home
+                </button>
+                <h2>Your Perfect Matches</h2>
+                <p>Based on your preferences, here are the cars we think you'll love:</p>
+                <div class="results-count" id="results-count"></div>
+                
+                <div class="results-grid" id="results-grid"></div>
+                
+                <div class="action-buttons">
+                    <button class="restart-btn" onclick="restartCarFinder()">
+                        <i class="fas fa-redo"></i>
+                        Start Over
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Car Inquiry Screen -->
+        <div id="inquiry-screen" class="screen">
+            <div class="inquiry-container">
+                <button class="back-to-home-btn" onclick="goBackToWelcome()">
+                    <i class="fas fa-home"></i>
+                    Back to Home
+                </button>
+                <div class="inquiry-header">
+                    <div class="inquiry-logo">
+                        <img src="logo.jpg" alt="Sora Motors" class="inquiry-logo-img">
+                    </div>
+                    <h2>Car Inquiry</h2>
+                    <p class="inquiry-tagline">Quick steps — we'll find your car</p>
+                    <!-- Step progress -->
+                    <div class="inquiry-progress" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="3">
+                        <div class="inquiry-progress-track">
+                            <div class="inquiry-progress-fill" id="inquiry-progress-fill"></div>
+                        </div>
+                        <div class="inquiry-steps-dots">
+                            <span class="inquiry-dot active" data-step="1">Car</span>
+                            <span class="inquiry-dot" data-step="2">Details</span>
+                            <span class="inquiry-dot" data-step="3">Contact</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected car preview (shown when car &lt; 25 years and make/model match a car in DB) -->
+                <div id="inquiry-selected-car-card" class="inquiry-selected-car" style="display: none;">
+                    <p class="inquiry-selected-car-label"><i class="fas fa-check-circle"></i> Matching car in our collection</p>
+                    <div class="inquiry-selected-car-inner">
+                        <div class="inquiry-selected-car-image-wrap">
+                            <img id="inquiry-selected-car-image" src="" alt="">
+                        </div>
+                        <div class="inquiry-selected-car-info">
+                            <h4 id="inquiry-selected-car-name"></h4>
+                            <p id="inquiry-selected-car-price" class="inquiry-selected-car-price"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="car-inquiry-form" class="inquiry-form" onsubmit="submitCarInquiry(event)">
+                    <!-- Step 1: Which car -->
+                    <div class="inquiry-step active" data-inquiry-step="1">
+                        <div class="form-section inquiry-step-card">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Is the car 25 years or older?
+                            </label>
+                            <div class="radio-group radio-group-inline">
+                                <label class="radio-option">
+                                    <input type="radio" name="car_age" value="25_plus" onchange="handleAgeSelection(this.value)" required>
+                                    <span class="radio-custom"></span>
+                                    <span>Yes, 25+ years</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="car_age" value="newer" onchange="handleAgeSelection(this.value)" required>
+                                    <span class="radio-custom"></span>
+                                    <span>No, newer</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="manual-input-section" class="form-section inquiry-step-card" style="display: none;">
+                            <p class="step-hint">Tell us the make and model</p>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="manual-car-make" class="form-label"><i class="fas fa-tag"></i> Make</label>
+                                    <input type="text" id="manual-car-make" name="manual_car_make" class="form-input" placeholder="e.g. Toyota, Nissan">
+                                </div>
+                                <div class="form-group">
+                                    <label for="manual-car-model" class="form-label"><i class="fas fa-car-side"></i> Model</label>
+                                    <input type="text" id="manual-car-model" name="manual_car_model" class="form-input" placeholder="e.g. Supra, Skyline">
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dropdown-section" class="form-section inquiry-step-card" style="display: none;">
+                            <p class="step-hint">Choose from our collection</p>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="car-make" class="form-label"><i class="fas fa-tag"></i> Make</label>
+                                    <select id="car-make" name="car_make" class="form-select">
+                                        <option value="">Select Make</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="car-model" class="form-label"><i class="fas fa-car-side"></i> Model</label>
+                                    <select id="car-model" name="car_model" class="form-select">
+                                        <option value="">Select Model</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="inquiry-import-expiry-block" class="inquiry-import-expiry-wrap" hidden></div>
+                            <div id="other-make-group" class="form-group" style="display: none;">
+                                <label for="other-car-make" class="form-label"><i class="fas fa-pen"></i> Other make</label>
+                                <input type="text" id="other-car-make" name="other_car_make" class="form-input" placeholder="Type the make">
+                            </div>
+                            <div id="other-model-group" class="form-group" style="display: none;">
+                                <label for="other-car-model" class="form-label"><i class="fas fa-pen"></i> Other model</label>
+                                <input type="text" id="other-car-model" name="other_car_model" class="form-input" placeholder="Type the model">
+                            </div>
+                        </div>
+                        <div class="inquiry-step-actions">
+                            <button type="button" class="inquiry-next-btn" onclick="nextInquiryStep()">
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Additional details -->
+                    <div class="inquiry-step" data-inquiry-step="2">
+                        <div class="form-section inquiry-step-card">
+                            <h3 class="section-title">Extra details <span class="section-optional">(optional)</span></h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="trim-level" class="form-label"><i class="fas fa-layer-group"></i> Trim</label>
+                                    <input type="text" id="trim-level" name="trim_level" class="form-input" placeholder="e.g. GX, VX">
+                                </div>
+                                <div class="form-group">
+                                    <label for="color" class="form-label"><i class="fas fa-palette"></i> Colour</label>
+                                    <input type="text" id="color" name="color" class="form-input" placeholder="e.g. White, Black">
+                                </div>
+                            </div>
+                            <div class="form-row form-row-compact">
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-calendar"></i> Year</label>
+                                    <div class="range-selector">
+                                        <select id="year-from" name="year_from" class="form-select range-select"><option value="">From</option></select>
+                                        <span class="range-separator">–</span>
+                                        <select id="year-to" name="year_to" class="form-select range-select"><option value="">To</option></select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label"><i class="fas fa-tachometer-alt"></i> Mileage (km)</label>
+                                    <div class="range-selector">
+                                        <select id="mileage-from" name="mileage_from" class="form-select range-select"><option value="">From</option></select>
+                                        <span class="range-separator">–</span>
+                                        <select id="mileage-to" name="mileage_to" class="form-select range-select"><option value="">To</option></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="options" class="form-label"><i class="fas fa-list"></i> Options / features</label>
+                                <textarea id="options" name="options" class="form-textarea" rows="2" placeholder="Sunroof, leather, nav..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="other-requirements" class="form-label"><i class="fas fa-comment-alt"></i> Other notes</label>
+                                <textarea id="other-requirements" name="other_requirements" class="form-textarea" rows="2" placeholder="Anything else we should know..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"><i class="fas fa-signal"></i> How serious is your enquiry?</label>
+                                <div class="radio-group seriousness-group">
+                                    <label class="radio-option">
+                                        <input type="radio" name="inquiry_seriousness" value="Just exploring">
+                                        <span class="radio-custom"></span>
+                                        <span><strong>Just exploring</strong><small>I’m browsing options and learning what’s available.</small></span>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="inquiry_seriousness" value="Interested">
+                                        <span class="radio-custom"></span>
+                                        <span><strong>Interested</strong><small>I’ve found something I like and want more information.</small></span>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="inquiry_seriousness" value="Ready soon">
+                                        <span class="radio-custom"></span>
+                                        <span><strong>Ready soon</strong><small>I’m planning to buy soon and want to discuss options.</small></span>
+                                    </label>
+                                    <label class="radio-option">
+                                        <input type="radio" name="inquiry_seriousness" value="Ready now">
+                                        <span class="radio-custom"></span>
+                                        <span><strong>Ready now</strong><small>I’m ready to move forward as soon as possible.</small></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inquiry-step-actions">
+                            <button type="button" class="inquiry-back-step-btn" onclick="prevInquiryStep()">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button type="button" class="inquiry-next-btn" onclick="nextInquiryStep()">
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Contact & submit -->
+                    <div class="inquiry-step" data-inquiry-step="3">
+                        <div class="form-section inquiry-step-card">
+                            <h3 class="section-title">How we'll reach you</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact-name" class="form-label"><i class="fas fa-user"></i> Name *</label>
+                                    <input type="text" id="contact-name" name="contact_name" class="form-input" placeholder="Your name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contact-email" class="form-label"><i class="fas fa-envelope"></i> Email *</label>
+                                    <input type="email" id="contact-email" name="contact_email" class="form-input" placeholder="you@example.com" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="contact-phone" class="form-label"><i class="fas fa-phone"></i> Phone</label>
+                                <input type="tel" id="contact-phone" name="contact_phone" class="form-input" placeholder="+61 400 000 000">
+                            </div>
+                        </div>
+                        <div class="inquiry-step-actions inquiry-step-actions-submit">
+                            <button type="button" class="inquiry-back-step-btn" onclick="prevInquiryStep()">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button type="button" class="cancel-btn" onclick="goBackToWelcome()">Cancel</button>
+                            <button type="submit" class="submit-btn inquiry-submit-btn">
+                                <i class="fas fa-paper-plane"></i> Send inquiry
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Inquiry Success Screen -->
+        <div id="inquiry-success-screen" class="screen">
+            <div class="inquiry-success-container">
+                <button class="back-to-home-btn" onclick="goBackToWelcome()">
+                    <i class="fas fa-home"></i>
+                    Go Home
+                </button>
+
+                <div class="inquiry-success-header">
+                    <div class="inquiry-success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h2>Thank You For Your Inquiry</h2>
+                    <p>We’ve received your inquiry and our team will get back to you soon with the next steps, suitable options, and any extra information you need.</p>
+                </div>
+
+                <div class="inquiry-success-grid">
+                    <div class="inquiry-success-card">
+                        <h3><i class="fas fa-store"></i> About Sora Motors</h3>
+                        <p>Sora Motors is a car dealership based in Victoria, helping customers source quality vehicles from Japan through a smooth and reliable buying process.</p>
+                    </div>
+
+                    <div class="inquiry-success-card">
+                        <h3><i class="fas fa-map-marker-alt"></i> Support From Japan</h3>
+                        <p>Our head office, operating under a different company name, is located near Tokyo in Japan. If the vehicle can be purchased near Tokyo, we can arrange for one of our staff to inspect it on your behalf.</p>
+                    </div>
+
+                    <div class="inquiry-success-card">
+                        <h3><i class="fas fa-tools"></i> Preparation Before Shipping</h3>
+                        <p>We have our own yard in Japan with our own qualified mechanics and professional panel beaters. We can prepare your vehicle before shipping to Australia, including servicing, wheel changes, parts replacement, scratch repairs, and other requested work.</p>
+                    </div>
+
+                    <div class="inquiry-success-card">
+                        <h3><i class="fas fa-truck"></i> Registration And Delivery</h3>
+                        <p>If you are located in Victoria, we can register the car for you so all you need to do is pick it up. If you are outside Victoria, we can send the car directly to you and provide easy step-by-step guidance on how to register it in your state.</p>
+                    </div>
+                </div>
+
+                <div class="inquiry-success-contact">
+                    <h3>Need Help Right Away?</h3>
+                    <p>If you’d like to speak with us now, call us and we’ll be happy to help.</p>
+                    <a href="tel:0450856355" class="inquiry-success-call-btn">
+                        <i class="fas fa-phone"></i>
+                        Call 0450 856 355
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Car Details Screen -->
+        <div id="car-details-screen" class="screen">
+            <div class="car-details-container">
+                <div class="car-details-header">
+                    <button class="back-btn" onclick="goBackToResults()">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Results
+                    </button>
+                    <div class="car-title-price">
+                        <h2 id="car-details-title"></h2>
+                        <h3 id="car-details-price"></h3>
+                    </div>
+                </div>
+                
+                <div class="car-details-content">
+                    <div class="car-images-section">
+                        <div class="image-tabs">
+                            <button class="image-tab active" onclick="switchImageTab('exterior')">
+                                <i class="fas fa-car"></i>
+                                Exterior
+                            </button>
+                            <button class="image-tab" onclick="switchImageTab('interior')">
+                                <i class="fas fa-chair"></i>
+                                Interior
+                            </button>
+                        </div>
+                        <div class="car-image-display">
+                            <img id="car-details-image" src="" alt="Car Image">
+                        </div>
+                    </div>
+                    
+                    <div class="car-info-section">
+                        
+                        <!-- Specifications Section -->
+                        <div class="car-specifications-info">
+                            <h4>Technical Specifications</h4>
+                            <div id="car-specifications" class="specifications-container"></div>
+                        </div>
+                        
+                        <!-- Features Section -->
+                        <div class="car-features-info">
+                            <h4>Features</h4>
+                            <div id="car-details-features" class="features-list"></div>
+                        </div>
+                        
+                        <!-- Detailed Description Section -->
+                        <div id="car-detailed-description" class="car-description-info"></div>
+                        
+                        <!-- Pros Section -->
+                        <div id="car-pros" class="car-pros-info"></div>
+                        
+                        <!-- YouTube Section -->
+                        <div id="car-youtube" class="car-youtube-info"></div>
+                        
+                        <!-- Basic Description Section -->
+                        <div class="car-description-info">
+                            <h4>Overview</h4>
+                            <p id="car-details-description"></p>
+                        </div>
+                        
+                        <div class="car-details-actions">
+                            <button class="contact-btn" onclick="contactAboutCarFromDetails()">
+                                <i class="fas fa-phone"></i>
+                                Contact About This Car
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact About This Car modal (stays on same page, pre-filled) -->
+        <div id="contact-car-modal" class="contact-car-modal" aria-hidden="true">
+            <div class="contact-car-modal-backdrop" onclick="closeContactCarModal()"></div>
+            <div class="contact-car-modal-box">
+                <button type="button" class="contact-car-modal-close" onclick="closeContactCarModal()" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="contact-car-modal-header">
+                    <h3 id="contact-car-modal-title">Inquire about this car</h3>
+                    <p id="contact-car-modal-car-info" class="contact-car-modal-car-info"></p>
+                </div>
+                <form id="contact-car-form" class="contact-car-form" onsubmit="submitContactCarForm(event)">
+                    <input type="hidden" name="car_age" id="contact-modal-car-age" value="newer">
+                    <input type="hidden" name="car_make" id="contact-modal-car-make" value="">
+                    <input type="hidden" name="car_model" id="contact-modal-car-model" value="">
+                    <div class="form-section inquiry-step-card">
+                        <h3 class="section-title">Extra details <span class="section-optional">(optional)</span></h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contact-modal-trim" class="form-label"><i class="fas fa-layer-group"></i> Trim</label>
+                                <input type="text" id="contact-modal-trim" name="trim_level" class="form-input" placeholder="e.g. GX, VX">
+                            </div>
+                            <div class="form-group">
+                                <label for="contact-modal-color" class="form-label"><i class="fas fa-palette"></i> Colour</label>
+                                <input type="text" id="contact-modal-color" name="color" class="form-input" placeholder="e.g. White, Black">
+                            </div>
+                        </div>
+                        <div class="form-row form-row-compact">
+                            <div class="form-group">
+                                <label class="form-label"><i class="fas fa-calendar"></i> Year</label>
+                                <div class="range-selector">
+                                    <select id="contact-modal-year-from" name="year_from" class="form-select range-select"><option value="">From</option></select>
+                                    <span class="range-separator">–</span>
+                                    <select id="contact-modal-year-to" name="year_to" class="form-select range-select"><option value="">To</option></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"><i class="fas fa-tachometer-alt"></i> Mileage (km)</label>
+                                <div class="range-selector">
+                                    <select id="contact-modal-mileage-from" name="mileage_from" class="form-select range-select"><option value="">From</option></select>
+                                    <span class="range-separator">–</span>
+                                    <select id="contact-modal-mileage-to" name="mileage_to" class="form-select range-select"><option value="">To</option></select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-modal-options" class="form-label"><i class="fas fa-list"></i> Options / features</label>
+                            <textarea id="contact-modal-options" name="options" class="form-textarea" rows="2" placeholder="Sunroof, leather, nav..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-modal-other" class="form-label"><i class="fas fa-comment-alt"></i> Other notes</label>
+                            <textarea id="contact-modal-other" name="other_requirements" class="form-textarea" rows="2" placeholder="Anything else we should know..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label"><i class="fas fa-signal"></i> How serious is your enquiry?</label>
+                            <div class="radio-group seriousness-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="inquiry_seriousness" value="Just exploring">
+                                    <span class="radio-custom"></span>
+                                    <span><strong>Just exploring</strong><small>I’m browsing options and learning what’s available.</small></span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="inquiry_seriousness" value="Interested">
+                                    <span class="radio-custom"></span>
+                                    <span><strong>Interested</strong><small>I’ve found something I like and want more information.</small></span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="inquiry_seriousness" value="Ready soon">
+                                    <span class="radio-custom"></span>
+                                    <span><strong>Ready soon</strong><small>I’m planning to buy soon and want to discuss options.</small></span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="inquiry_seriousness" value="Ready now">
+                                    <span class="radio-custom"></span>
+                                    <span><strong>Ready now</strong><small>I’m ready to move forward as soon as possible.</small></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-section inquiry-step-card">
+                        <h3 class="section-title">Your contact details</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="contact-modal-name" class="form-label"><i class="fas fa-user"></i> Name *</label>
+                                <input type="text" id="contact-modal-name" name="contact_name" class="form-input" placeholder="Your name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="contact-modal-email" class="form-label"><i class="fas fa-envelope"></i> Email *</label>
+                                <input type="email" id="contact-modal-email" name="contact_email" class="form-input" placeholder="you@example.com" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-modal-phone" class="form-label"><i class="fas fa-phone"></i> Phone</label>
+                            <input type="tel" id="contact-modal-phone" name="contact_phone" class="form-input" placeholder="+61 400 000 000">
+                        </div>
+                    </div>
+                    <div class="contact-car-modal-actions">
+                        <button type="button" class="inquiry-back-step-btn" onclick="closeContactCarModal()">Cancel</button>
+                        <button type="submit" class="submit-btn">
+                            <i class="fas fa-paper-plane"></i> Send inquiry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="car-finder.js"></script>
+</body>
+</html> 
