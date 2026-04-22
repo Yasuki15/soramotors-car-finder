@@ -886,6 +886,16 @@ class CarFinder {
         this.currentCarDetails = car;
 
         this.showScreen('car-details-screen');
+        // Ensure users land at the top of details on all browsers.
+        const root = document.documentElement;
+        const body = document.body;
+        if (root) root.scrollTop = 0;
+        if (body) body.scrollTop = 0;
+        try {
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        } catch (_) {
+            window.scrollTo(0, 0);
+        }
     }
 
     updateCarSpecifications(car) {
@@ -1915,14 +1925,17 @@ function goBackToResults() {
     carFinder.showScreen('results-screen');
 }
 
-function switchImageTab(imageType) {
+function switchImageTab(imageType, event) {
     carFinder.switchCarImage(imageType);
     
     // Update tab states
     document.querySelectorAll('.image-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    event.target.classList.add('active');
+    const clickedTab = event?.currentTarget || event?.target?.closest('.image-tab');
+    if (clickedTab) {
+        clickedTab.classList.add('active');
+    }
 }
 
 function contactAboutCarFromDetails() {
