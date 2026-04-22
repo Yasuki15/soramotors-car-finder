@@ -139,6 +139,7 @@ class CarFinder {
         this.inquiryStep = 1;
         this.inquiryTotalSteps = 3;
         this.isAdvancingQuestion = false;
+        this.blockHomeNavigationUntil = 0;
         
         // Load cars from Supabase
         this.loadCarsFromSupabase();
@@ -539,6 +540,7 @@ class CarFinder {
     nextQuestion() {
         if (this.isAdvancingQuestion) return;
         this.isAdvancingQuestion = true;
+        this.blockHomeNavigationUntil = Date.now() + 1200;
 
         const releaseAdvanceLock = () => {
             setTimeout(() => {
@@ -577,6 +579,10 @@ class CarFinder {
             const top = questionHeading.getBoundingClientRect().top + window.pageYOffset - 12;
             window.scrollTo(0, Math.max(0, top));
         }
+    }
+
+    canNavigateHomeNow() {
+        return Date.now() >= this.blockHomeNavigationUntil;
     }
 
     updateProgress() {
@@ -2053,6 +2059,9 @@ function handleAgeSelection(ageValue) {
 }
 
 function goBackToWelcome() {
+    if (!carFinder.canNavigateHomeNow()) {
+        return;
+    }
     carFinder.restartCarFinder();
 }
 
