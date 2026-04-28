@@ -708,7 +708,8 @@ class CarFinder {
         };
 
         this.currentQuestion++;
-        
+        this.skipEngineQuestionIfElectricOnly();
+
         if (this.currentQuestion < this.questions.length) {
             this.displayQuestion();
             this.scrollQuestionToTop();
@@ -744,8 +745,37 @@ class CarFinder {
         return Date.now() >= this.blockHomeNavigationUntil;
     }
 
+    /**
+     * Skip "engine power" when the user chose only Electric — no ICE engine applies.
+     * If they chose Electric plus any other fuel type, show the question.
+     */
+    shouldSkipEngineSizeQuestion() {
+        const fuel = this.answers.fuel;
+        if (!fuel || fuel.length === 0) return false;
+        return fuel.every(v => v === 'fuel_electric');
+    }
+
+    /** After advancing `currentQuestion`, skip engine_size when electric-only and drop stale answers. */
+    skipEngineQuestionIfElectricOnly() {
+        while (
+            this.currentQuestion < this.questions.length &&
+            this.questions[this.currentQuestion].id === 'engine_size' &&
+            this.shouldSkipEngineSizeQuestion()
+        ) {
+            delete this.answers.engine_size;
+            this.currentQuestion++;
+        }
+    }
+
     updateProgress() {
-        const progress = (this.currentQuestion / this.questions.length) * 100;
+        const engineIdx = this.questions.findIndex(q => q.id === 'engine_size');
+        const skipEngine = this.shouldSkipEngineSizeQuestion();
+        const denom = Math.max(1, this.questions.length - (skipEngine ? 1 : 0));
+        let idx = this.currentQuestion;
+        if (skipEngine && engineIdx >= 0 && idx > engineIdx) {
+            idx -= 1;
+        }
+        const progress = Math.min(100, (idx / denom) * 100);
         document.getElementById('progress-fill').style.width = `${progress}%`;
     }
 
