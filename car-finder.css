@@ -1321,6 +1321,28 @@ body {
     line-height: 1.5;
 }
 
+.results-fallback-note {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #444;
+    margin: 14px auto 0;
+    max-width: 720px;
+    line-height: 1.55;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(50, 137, 187, 0.1), rgba(42, 123, 163, 0.06));
+    border: 1px solid rgba(50, 137, 187, 0.25);
+    border-radius: 12px;
+}
+
+.results-fallback-note i {
+    color: #3289bb;
+    margin-right: 6px;
+}
+
+.count-display--fallback {
+    background: linear-gradient(135deg, #2a7ba3, #24709a) !important;
+}
+
 /* Google-style results pagination */
 .results-pagination {
     margin: 4px 0 28px;

@@ -16,6 +16,8 @@ function ensureArray(value) {
 }
 
 const RESULTS_PAGE_SIZE = 50;
+/** When strict matching returns zero cars, show this many closest tag matches instead (between 15–20). */
+const CLOSEST_FALLBACK_LIMIT = 20;
 
 function escapeHtml(value) {
     if (value == null) return '';
@@ -154,6 +156,7 @@ class CarFinder {
         this._previewUpdateRaf = null;
         this._fullMatchedCarsData = null;
         this._resultsCurrentPage = 1;
+        this._lastResultsWereFallback = false;
         
         // Load cars from Supabase
         this.loadCarsFromSupabase();
@@ -462,6 +465,7 @@ class CarFinder {
     startCarFinder() {
         this.currentQuestion = 0;
         this.answers = {};
+        this._lastResultsWereFallback = false;
         this.updateCarPreview();
         this.showScreen('question-screen');
         this.displayQuestion();
@@ -824,6 +828,44 @@ class CarFinder {
         return bestMatch;
     }
 
+    /**
+     * When strict filters yield no cars, rank all vehicles by overlap with the user's selected tags
+     * and return the top `limit` entries (default 20).
+     */
+    buildClosestMatchFallback(selectedTagsByQuestion, limit = CLOSEST_FALLBACK_LIMIT) {
+        const allSelectedTags = Object.values(selectedTagsByQuestion).flat();
+        if (allSelectedTags.length === 0 || !this.carDatabase.length) {
+            return [];
+        }
+
+        const scored = this.carDatabase.map(car => {
+            const tags = ensureArray(car.tags);
+            const matchCount = tags.filter(t => allSelectedTags.includes(t)).length;
+            const carTotalTags = tags.length;
+            const matchPercentage = carTotalTags > 0 ? matchCount / carTotalTags : 0;
+            const userCoverage = allSelectedTags.length > 0 ? matchCount / allSelectedTags.length : 0;
+            return {
+                car,
+                matchCount,
+                carTotalTags,
+                matchPercentage,
+                userCoverage,
+                isClosestMatchFallback: true
+            };
+        });
+
+        scored.sort((a, b) => {
+            if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+            if (b.userCoverage !== a.userCoverage) return b.userCoverage - a.userCoverage;
+            if (b.matchPercentage !== a.matchPercentage) return b.matchPercentage - a.matchPercentage;
+            const an = (a.car && a.car.name) ? String(a.car.name) : '';
+            const bn = (b.car && b.car.name) ? String(b.car.name) : '';
+            return an.localeCompare(bn);
+        });
+
+        return scored.slice(0, limit);
+    }
+
     getMatchedCars() {
         // Example: answers object
         // this.answers = { budget: ['budget_low', 'budget_medium'], seats: ['seats_small', 'seats_medium'], ... }
@@ -945,6 +987,22 @@ class CarFinder {
         console.log(`Match threshold: 75% (car tag-based scoring)`);
         console.log(`Total user selected tags: ${Object.values(selectedTagsByQuestion).flat().length}`);
 
+        this._lastResultsWereFallback = false;
+
+        if (
+            filteredCars.length === 0 &&
+            Object.keys(selectedTagsByQuestion).length > 0
+        ) {
+            const fallback = this.buildClosestMatchFallback(selectedTagsByQuestion, CLOSEST_FALLBACK_LIMIT);
+            this._lastResultsWereFallback = fallback.length > 0;
+            if (this._lastResultsWereFallback) {
+                console.log(
+                    `Strict filter returned 0 cars; showing ${fallback.length} closest tag matches (fallback).`
+                );
+            }
+            return fallback;
+        }
+
         // Return all matching cars with their scoring information
         return filteredCars;
     }
@@ -1016,11 +1074,18 @@ class CarFinder {
             const pagedNote = totalMatches > RESULTS_PAGE_SIZE
                 ? `<p class="results-cap-note">Showing <strong>${RESULTS_PAGE_SIZE}</strong> cars per page. Use the page numbers below (like Google) to see more matches.</p>`
                 : '';
+            const fallbackNote = this._lastResultsWereFallback
+                ? `<p class="results-fallback-note"><i class="fas fa-info-circle" aria-hidden="true"></i> There were no vehicles that matched <strong>every</strong> filter. Below are up to <strong>${CLOSEST_FALLBACK_LIMIT}</strong> cars that align <strong>most closely</strong> with your answers. Try adjusting your choices and run the search again for a tighter match.</p>`
+                : '';
+            const countLabel = this._lastResultsWereFallback
+                ? `Showing <strong>${totalMatches}</strong> closest ${totalMatches === 1 ? 'option' : 'options'}`
+                : `Found <strong>${totalMatches}</strong> match${totalMatches === 1 ? '' : 'es'}`;
             resultsCount.innerHTML = `
-                <div class="count-display">
+                <div class="count-display${this._lastResultsWereFallback ? ' count-display--fallback' : ''}">
                     <i class="fas fa-check-circle"></i>
-                    <span>Found <strong>${totalMatches}</strong> match${totalMatches === 1 ? '' : 'es'}</span>
+                    <span>${countLabel}</span>
                 </div>
+                ${fallbackNote}
                 ${pagedNote}
             `;
         }
@@ -1472,6 +1537,7 @@ class CarFinder {
         this.answers = {};
         this._fullMatchedCarsData = null;
         this._resultsCurrentPage = 1;
+        this._lastResultsWereFallback = false;
         const paginationEl = document.getElementById('results-pagination');
         if (paginationEl) paginationEl.innerHTML = '';
         this.updateCarPreview();
